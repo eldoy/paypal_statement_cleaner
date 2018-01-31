@@ -23,7 +23,7 @@ class Cleaner
       puts "Found #{files.first}, processsing ..."
     end
 
-    @rows = CSV.parse(File.read('./Fugroup_transactions.csv'), :headers => true)
+    @rows = CSV.parse(File.read('./download.csv'), :encoding => "bom|utf-8", :headers => :first_row)
 
     # Convert to array and clean keys and values
     @csv = []
@@ -38,13 +38,14 @@ class Cleaner
     @csv.each_with_index do |row, index|
       # Save bank first
       next_row = @csv[index + 1]
-      if next_row and next_row["Type"] == "Withdraw Funds to Bank Account"
-        row["Fee"] = "0"
-        @bank << row
-      else
-        # Remove non-default currency rows
-        @entries << row if row["Currency"] == DC and !["Order", "Pending Balance Payment", "Temporary Hold"].include?(row["Type"])
-      end
+      # Save the bank row
+      @bank << next_row if next_row and row["Type"] == "General Withdrawal"
+
+      # Skip if another currency, currency conversions take care of that
+      next unless row["Currency"] == DC
+
+      # Remove non-default currency rows
+      @entries << row if !["Account Hold"].include?(row["Type"])
     end
     puts
     puts "Done.\n\n"
@@ -66,6 +67,10 @@ class Cleaner
     sum(@bank, "Net")
   end
 
+  def cost
+    (gross('-').to_f - bank_sum.to_f).round(2) * -1
+  end
+
   # Write to file except bank withdrawals
   def write_result
     CSV.open(OUT, "w") do |r|
@@ -84,8 +89,8 @@ class Cleaner
     puts "___ GROSS ___\nGAIN #{gross} #{DC} #{sep} IN #{gross('+')} #{DC} #{sep} OUT #{gross('-')} #{DC}\n\n"
     puts "___ FEES ___\nGAIN #{fees} #{DC} #{sep} IN #{fees('+')} #{DC} #{sep} OUT #{fees('-')} #{DC}\n\n"
     puts "___ NET ___\nGAIN #{net} #{DC} #{sep} IN #{net('+')} #{DC} #{sep} OUT #{net('-')} #{DC}\n\n"
-    puts "=== BANK (#{@bank.size}) ==="
-    puts "#{bank_sum} #{DC}\n\n"
+    puts "=== BANK (#{@bank.size}) ===\n#{bank_sum} #{DC}\n\n"
+    puts "~~~ COST ~~~\n#{cost}\n\n"
     puts "Done."
   end
 
