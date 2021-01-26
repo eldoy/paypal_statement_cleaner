@@ -1,6 +1,7 @@
 #!/usr/bin/env ruby
 
 require 'csv'
+require './converter.rb'
 
 class Cleaner
 
@@ -8,6 +9,9 @@ class Cleaner
 
   # The default currency, delete all other currencies and use currency conversion
   DC = 'USD'
+
+  # The outgoing currency
+  OC = 'HKD'
 
   # The file to write the result to
   OUT = 'result.csv'
@@ -86,10 +90,10 @@ class Cleaner
     # puts "File: #{@csv.size}"
     sep = "  "
     puts "=== RESULT (#{@entries.size} entries) ===\n\n"
-    puts "___ GROSS ___\nGAIN #{gross} #{DC} #{sep} IN #{gross('+')} #{DC} #{sep} OUT #{gross('-')} #{DC}\n\n"
-    puts "___ FEES ___\nGAIN #{fees} #{DC} #{sep} IN #{fees('+')} #{DC} #{sep} OUT #{fees('-')} #{DC}\n\n"
-    puts "___ NET ___\nGAIN #{net} #{DC} #{sep} IN #{net('+')} #{DC} #{sep} OUT #{net('-')} #{DC}\n\n"
-    puts "=== BANK (#{@bank.size}) ===\n#{bank_sum} #{DC}\n\n"
+    puts "___ GROSS ___\nGAIN #{gross} #{OC} #{sep} IN #{gross('+')} #{OC} #{sep} OUT #{gross('-')} #{OC}\n\n"
+    puts "___ FEES ___\nGAIN #{fees} #{OC} #{sep} IN #{fees('+')} #{OC} #{sep} OUT #{fees('-')} #{OC}\n\n"
+    puts "___ NET ___\nGAIN #{net} #{OC} #{sep} IN #{net('+')} #{OC} #{sep} OUT #{net('-')} #{OC}\n\n"
+    puts "=== BANK (#{@bank.size}) ===\n#{bank_sum} #{OC}\n\n"
     puts "~~~ COST ~~~\n#{cost}\n\n"
     puts "Done."
   end
@@ -102,6 +106,12 @@ class Cleaner
     r = 0.0
     rows.each do |row|
       amount = row[type].to_f
+
+      # Convert amount on that day
+      amount = get_amount(amount, row["Date"])
+
+      sleep 0.1
+
       r += amount if !denomination or (denomination == '+' and amount > 0) or (denomination == '-' and amount < 0)
     end
     sprintf("%0.02f", r.round(2))
